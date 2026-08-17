@@ -2,8 +2,8 @@
 
 #include <cstdint>
 #include <cstring>
-#include <functional>
 #include <format>
+#include <functional>
 #include <source_location>
 
 #include "print.hpp"
