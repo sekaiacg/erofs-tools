@@ -12,6 +12,18 @@ namespace skkk::erofs {
 	void ExtractConfig::setImagePath(const std::string &path) {
 		strTrim(imagePath = path);
 		handleWinPath(imagePath);
+		if (!imagePath.empty()) {
+			imageBaseName = imagePath;
+			auto ps = imagePath.rfind('/');
+			if (ps != std::string::npos) {
+				imageBaseName = imagePath.substr(ps + 1, imagePath.size());
+			}
+			ps = imageBaseName.find('.');
+			if (ps != std::string::npos) {
+				imageBaseName.erase(ps, imageBaseName.size());
+			}
+			LOGCD("config: imgBaseName={}", imageBaseName.c_str());
+		}
 	}
 
 	const std::string &ExtractConfig::getImageBaseName() const {
@@ -33,16 +45,6 @@ namespace skkk::erofs {
 	void ExtractConfig::setOutDir(const std::string &path) {
 		strTrim(outDir = path);
 		handleWinPath(outDir);
-
-		imageBaseName = path;
-		if (!imagePath.empty()) {
-			auto ps = imagePath.rfind('/');
-			if (ps != std::string::npos)
-				imageBaseName = imagePath.substr(ps + 1, imagePath.size());
-			ps = imageBaseName.find('.');
-			if (ps != std::string::npos) imageBaseName.erase(ps, imageBaseName.size());
-			LOGCD("config: imgBaseName={}", imageBaseName.c_str());
-		}
 	}
 
 	std::string ExtractConfig::getConfigDir() const {

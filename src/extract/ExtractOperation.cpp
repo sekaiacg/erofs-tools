@@ -7,6 +7,9 @@ namespace skkk::erofs {
 	int ExtractOperation::initOutDir() {
 		if (outDir.empty()) {
 			outDir = "./" + imageBaseName;
+			if (imagePath.ends_with(imageBaseName)) {
+				outDir.append("_img");
+			}
 			configDir = "./config";
 		} else {
 			if (outDir.size() > 1 &&
@@ -42,16 +45,23 @@ namespace skkk::erofs {
 			if (mkdirs(path.c_str(), 0755)) {
 				rc = RET_EXTRACT_CREATE_DIR_FAIL;
 				LOGCE("create {} dir fail: '{}'({})", tag, path, strerror(errno));
+				goto out;
+			}
+			if (fileExists(path)) {
+				rc = RET_EXTRACT_CREATE_DIR_FAIL;
+				LOGCE("create {} dir fail: '{}'({})", tag, path, strerror(ENOTDIR));
+				goto out;
 			}
 		}
+	out:
 		return rc;
 	}
 
 	int ExtractOperation::createExtractConfigDir() const {
-		return createDir("config", configDir);
+		return createDir("config", configDir) == RET_EXTRACT_DONE;
 	}
 
 	int ExtractOperation::createExtractOutDir() const {
-		return createDir("out", outDir);
+		return createDir("out", outDir) == RET_EXTRACT_DONE;
 	}
 }

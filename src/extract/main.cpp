@@ -20,8 +20,6 @@
 
 using namespace skkk::erofs;
 
-static char erofsfsck_nullstr[] = "";
-
 static void get_available_compressors(std::string &ret) {
 	int i = 0;
 	bool comma = false;
@@ -227,7 +225,7 @@ static void printOperationTime(const timeval *start, const timeval *end) {
 
 int main(const int argc, char *argv[]) {
 	int ret = RET_EXTRACT_DONE;
-	bool err = false;
+	bool success = false;
 	timeval start{}, end{};
 
 	setbuf(stdout, nullptr);
@@ -262,10 +260,10 @@ int main(const int argc, char *argv[]) {
 	}
 
 	if (eo.isPrintTarget || eo.isExtractTarget || eo.isExtractTargetConfig)
-		err = ew->initErofsNodeByTarget();
+		success = ew->initErofsNodeByTarget();
 	else if (eo.isPrintAll || eo.isExtractAll)
-		err = ew->initErofsNode();
-	if (!err) {
+		success = ew->initErofsNode();
+	if (!success) {
 		ret = RET_EXTRACT_INIT_NODE_FAIL;
 		goto exit;
 	}
@@ -278,8 +276,8 @@ int main(const int argc, char *argv[]) {
 	LOGCI(GREEN2_BOLD("Starting..."));
 
 	if ((eo.isExtractTarget || eo.isExtractAll) && eo.isExtractConfig) {
-		err = eo.createExtractConfigDir();
-		if (err) {
+		success = eo.createExtractConfigDir();
+		if (!success) {
 			ret = RET_EXTRACT_CREATE_DIR_FAIL;
 			goto exit;
 		}
@@ -288,8 +286,8 @@ int main(const int argc, char *argv[]) {
 	}
 
 	if (eo.isExtractTarget || eo.isExtractAll) {
-		err = eo.createExtractConfigDir() & eo.createExtractOutDir();
-		if (err) {
+		success = eo.createExtractConfigDir() && eo.createExtractOutDir();
+		if (!success) {
 			ret = RET_EXTRACT_CREATE_DIR_FAIL;
 			goto exit;
 		}
