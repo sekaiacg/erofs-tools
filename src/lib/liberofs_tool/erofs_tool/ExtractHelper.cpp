@@ -9,7 +9,7 @@
 #include "Utils.h"
 #include "erofs/ExtractHelper.h"
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <windef.h>
 #include <winbase.h>
 #include <fileapi.h>
@@ -295,7 +295,7 @@ namespace skkk::erofs {
 	}
 
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 	const char CYGLINK_MAGIC[] = "!<symlink>";
 
 	int symlink_cygwin(const char *from, const char *to) {
@@ -357,7 +357,7 @@ namespace skkk::erofs {
 
 		buf[inode->i_size] = '\0';
 	again:
-#if !(defined(_WIN32) || defined(__CYGWIN__))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 		if (symlink(buf, filePath) < 0) {
 #else
 		// @formatter:off
@@ -398,7 +398,7 @@ namespace skkk::erofs {
 			ret = erofs_extract_file(config, inode, srcPath);
 	again:
 		if (strncmp(srcPath, targetPath, strlen(targetPath)) != 0 &&
-#if !(defined(_WIN32) || defined(__CYGWIN__))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 		    link(srcPath, targetPath) < 0) {
 #else
 			CreateHardLinkA(targetPath, srcPath, nullptr) != true) {

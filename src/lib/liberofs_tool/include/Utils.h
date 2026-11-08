@@ -66,7 +66,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 	strncpy(str, dirPath, PATH_MAX);
 	len = strlen(str);
 	for (int i = 0; i < len; i++) {
-#ifndef _WIN32
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 		if (str[i] == '/' && i > 0) {
 #else
 		// @formatter:off
@@ -74,7 +74,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 #endif
 			str[i] = '\0';
 			if (access(str, F_OK) != 0) {
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 				err = mkdir(str);
 #else
 				err = mkdir(str, mode);
@@ -85,7 +85,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 		}
 	}
 	if (len > 0 && access(str, F_OK) != 0) {
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 		err = mkdir(str);
 #else
 		err = mkdir(str, mode);

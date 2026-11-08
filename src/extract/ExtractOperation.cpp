@@ -20,7 +20,7 @@ namespace skkk::erofs {
 				LOGE("outDir directory name too long!");
 				return RET_EXTRACT_OUTDIR_ROOT;
 			}
-#if !(defined(_WIN32) || defined(__CYGWIN__))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 			const char *oDir = outDir.c_str();
 			auto oSize = outDir.size();
 			// check dir is root: "/","//","///",...

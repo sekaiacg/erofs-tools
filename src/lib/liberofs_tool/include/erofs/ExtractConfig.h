@@ -42,7 +42,7 @@ namespace skkk::erofs {
 			mutable std::string digestXattrName;
 
 		public:
-#if !defined(_WIN32)
+#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 			static constexpr bool isWin = false;
 #else
 			static constexpr bool isWin = true;
