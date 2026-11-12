@@ -1,11 +1,11 @@
 **extract.erofs**
 ===========
-**使用[erofs-utils](https://github.com/hsiangkao/erofs-utils)实现的提取erofs镜像的工具**  
+**使用 [erofs-utils](https://github.com/erofs/erofs-utils) 实现的提取erofs镜像的工具**  
 **提取包含：**
 - fs_config
 - files_context
 
-**A tool for extracting erofs images implemented using [erofs-utils](https://github.com/hsiangkao/erofs-utils)**  
+**A tool for extracting erofs images implemented using [erofs-utils](https://github.com/erofs/erofs-utils)**  
 **Extract contains:**
 - fs_config
 - files_context
