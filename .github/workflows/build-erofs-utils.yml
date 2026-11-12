@@ -1,0 +1,289 @@
+name: Build erofs-tools
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Push a new release'
+        required: false
+        default: 'false'
+      version:
+        description: 'Version'
+        required: false
+        default: 'v1.9.3-26111200'
+
+jobs:
+  release:
+    needs: [ Build-android, Build-linux, Build-macOS, Build-windows ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        if: github.event.inputs.release == 'true' && github.event.inputs.release != 'false' && !cancelled()
+
+      - name: Version
+        if: github.event.inputs.release == 'true' && github.event.inputs.release != 'false' && !cancelled()
+        run: |
+          ARTIFACT_DIR=$(ls); for name in ${ARTIFACT_DIR}; do chmod +x ${name}/*; touch -c -d "2009-01-01 00:00:00" ${name}/*; zip -9 -jy "${name}.zip" ${name}/* > /dev/null 2>&1; done;
+          ls -lahR
+
+      - name: Upload release
+        if: github.event.inputs.release == 'true' && github.event.inputs.release != 'false' && !cancelled()
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          removeArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ github.event.inputs.version }}
+          tag: ${{ github.event.inputs.version }}
+          body: This release is built by github-action.
+          artifacts: "*.zip"
+
+  Build-android:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC-8
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+
+    steps:
+      - name: Update system and install dependencies
+        run: |
+          sudo apt update && sudo apt install llvm
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: "Android_${{ runner.os }}"
+          restore-keys: "Android_${{ runner.os }}"
+
+      - name: Build erofs-tools
+        run: |
+          chmod a+x build.sh
+          ./build.sh Android
+
+      - name: Prepare artifact
+        if: success()
+        id: Artifact
+        run: |
+          echo "androidArmv8aDir=target/Android_arm64-v8a" >> $GITHUB_OUTPUT
+          androidArm64v8aName=`ls -d target/Android_arm64-v8a/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidArm64v8aName=$androidArm64v8aName" >> $GITHUB_OUTPUT
+
+          echo "androidX86x64Dir=target/Android_x86_64" >> $GITHUB_OUTPUT
+          androidX86x64Name=`ls -d target/Android_x86_64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "androidX86x64Name=$androidX86x64Name" >> $GITHUB_OUTPUT
+
+      - name: Upload erofs-tools Android_arm64-v8a
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.androidArm64v8aName }}
+          path: '${{ steps.Artifact.outputs.androidArmv8aDir }}/${{ steps.Artifact.outputs.androidArm64v8aName }}/*'
+
+      - name: Upload erofs-tools Android_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.androidX86x64Name }}
+          path: '${{ steps.Artifact.outputs.androidX86x64Dir }}/${{ steps.Artifact.outputs.androidX86x64Name }}/*'
+
+  Build-linux:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC-8
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+
+    steps:
+      - name: Setup LLVM
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 23
+
+      - name: Setup gcc-aarch64 tools
+        run: |
+          sudo apt update && sudo apt install cpp-14-aarch64-linux-gnu gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu
+
+      - name: Setup gcc-loongarch64 tools
+        run: |
+          sudo apt update && sudo apt install cpp-14-loongarch64-linux-gnu gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}
+          restore-keys: ${{ runner.os }}
+
+      - name: Build erofs-tools
+        run: |
+          chmod a+x build.sh
+          ./build.sh Linux
+
+      - name: Prepare artifact
+        if: success()
+        id: Artifact
+        run: |
+          echo "linuxX86x64Dir=target/Linux_x86_64" >> $GITHUB_OUTPUT
+          linuxX86x64Name=`ls -d target/Linux_x86_64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxX86x64Name=$linuxX86x64Name" >> $GITHUB_OUTPUT
+
+          echo "wslX86x64Dir=target/WSL_x86_64" >> $GITHUB_OUTPUT
+          wslX86x64Name=`ls -d target/WSL_x86_64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "wslX86x64Name=$wslX86x64Name" >> $GITHUB_OUTPUT
+
+          echo "linuxAarch64Dir=target/Linux_aarch64" >> $GITHUB_OUTPUT
+          linuxAarch64Name=`ls -d target/Linux_aarch64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxAarch64Name=$linuxAarch64Name" >> $GITHUB_OUTPUT
+
+          echo "linuxLoongarch64Dir=target/Linux_loongarch64" >> $GITHUB_OUTPUT
+          linuxLoongarch64Name=`ls -d target/Linux_loongarch64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "linuxLoongarch64Name=$linuxLoongarch64Name" >> $GITHUB_OUTPUT
+
+      - name: Upload erofs-tools Linux_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.linuxX86x64Name }}
+          path: '${{ steps.Artifact.outputs.linuxX86x64Dir }}/${{ steps.Artifact.outputs.linuxX86x64Name }}/*'
+
+      - name: Upload erofs-tools WSL_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.wslX86x64Name }}
+          path: '${{ steps.Artifact.outputs.wslX86x64Dir }}/${{ steps.Artifact.outputs.wslX86x64Name }}/*'
+
+      - name: Upload erofs-tools Linux_aarch64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.linuxAarch64Name }}
+          path: '${{ steps.Artifact.outputs.linuxAarch64Dir }}/${{ steps.Artifact.outputs.linuxAarch64Name }}/*'
+
+      - name: Upload erofs-tools Linux_loongarch64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.linuxLoongarch64Name }}
+          path: '${{ steps.Artifact.outputs.linuxLoongarch64Dir }}/${{ steps.Artifact.outputs.linuxLoongarch64Name }}/*'
+
+  Build-macOS:
+    runs-on: macos-latest
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+
+    steps:
+      - name: Install dependencies
+        run: brew install ccache
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}
+          restore-keys: ${{ runner.os }}
+
+      - name: Build erofs-tools
+        run: |
+          chmod a+x build_darwin.sh
+          ./build_darwin.sh
+
+      - name: Prepare artifact
+        if: success()
+        id: prepareArtifact
+        run: |
+          echo "darwinX86x64Dir=target/Darwin_x86_64" >> $GITHUB_OUTPUT
+          darwinX86x64Name=`ls -d target/Darwin_x86_64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "darwinX86x64Name=$darwinX86x64Name" >> $GITHUB_OUTPUT
+
+          echo "darwinAarch64Dir=target/Darwin_aarch64" >> $GITHUB_OUTPUT
+          darwinAarch64Name=`ls -d target/Darwin_aarch64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "darwinAarch64Name=$darwinAarch64Name" >> $GITHUB_OUTPUT
+
+      - name: Upload erofs-tools Darwin_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.prepareArtifact.outputs.darwinX86x64Name }}
+          path: '${{ steps.prepareArtifact.outputs.darwinX86x64Dir }}/${{ steps.prepareArtifact.outputs.darwinX86x64Name }}/*'
+
+      - name: Upload erofs-tools Darwin_aarch64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.prepareArtifact.outputs.darwinAarch64Name }}
+          path: '${{ steps.prepareArtifact.outputs.darwinAarch64Dir }}/${{ steps.prepareArtifact.outputs.darwinAarch64Name }}/*'
+
+  Build-windows:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC-8
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+      CCACHE_BASEDIR: "${{ github.workspace }}"
+      LLVM_CYGWIN_PATH: "/opt/cygwin"
+      LLVM_CYGWIN_VERSION: "20.1.8"
+
+    steps:
+      - name: Setup llvm-cygwin tools
+        run: |
+          wget https://github.com/affggh/llvm-cygwin/releases/download/v${LLVM_CYGWIN_VERSION}/llvm-cygwin-${LLVM_CYGWIN_VERSION}-x86_64-linux.tar.xz
+          mkdir ${LLVM_CYGWIN_PATH}
+          tar -xf llvm-cygwin-${LLVM_CYGWIN_VERSION}-x86_64-linux.tar.xz -C ${LLVM_CYGWIN_PATH}
+          echo "LLVM_CYGWIN_PATH=${LLVM_CYGWIN_PATH}/llvm-cygwin-${LLVM_CYGWIN_VERSION}-x86_64-linux" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: "Cygwin_${{ runner.os }}"
+          restore-keys: "Cygwin_${{ runner.os }}"
+
+      - name: Build erofs-tools
+        run: |
+          chmod a+x build_cygwin.sh
+          ./build_cygwin.sh
+
+      - name: Prepare artifact
+        if: success()
+        id: Artifact
+        run: |
+          echo "cygwinX86x64Dir=target/Cygwin_x86_64" >> $GITHUB_OUTPUT
+          cygwinX86x64Name=`ls -d target/Cygwin_x86_64/erofs-tools-v*/ | awk -F '(/|.zip)' '{print $3}'` && echo "cygwinX86x64Name=$cygwinX86x64Name" >> $GITHUB_OUTPUT
+
+      - name: Upload erofs-tools Cygwin_x86_64
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.Artifact.outputs.cygwinX86x64Name }}
+          path: "${{ steps.Artifact.outputs.cygwinX86x64Dir }}/${{ steps.Artifact.outputs.cygwinX86x64Name }}/*"

@@ -1,0 +1,85 @@
+OUT="./out"
+BUILD_DIR="./"
+EROFS_VERSION="$(cd src/lib/erofs-utils;tag=$(git describe --exact-match 2>/dev/null);head=$(git rev-parse --verify HEAD 2>/dev/null); printf '%s-g%.8s' $tag $head)"
+
+cmake_build()
+{
+    local TARGET=$1
+    local METHOD=$2
+    local ABI=$3
+
+    local MAKE_CMD=""
+    local BUILD_METHOD=""
+    if [[ $METHOD == "Ninja" ]]; then
+        BUILD_METHOD="-G Ninja"
+        MAKE_CMD="time -p ninja -C $OUT"
+    elif [[ $METHOD == "make" ]]; then
+        MAKE_CMD="time -p make -C $OUT -j$(sysctl -n hw.logicalcpu)"
+    fi
+
+    local PROCESSOR=""
+    [ ${ABI} == "x86_64" ] && PROCESSOR="x86_64"
+    [ ${ABI} == "aarch64" ] && PROCESSOR="arm64"
+
+    if [[ $TARGET == "Darwin" ]]; then
+        cmake -S ${BUILD_DIR} -B ${OUT} ${BUILD_METHOD} \
+            -DCMAKE_SYSTEM_NAME="Darwin" \
+            -DCMAKE_SYSTEM_PROCESSOR="${PROCESSOR}" \
+            -DCMAKE_BUILD_TYPE="Release" \
+            -DCMAKE_C_COMPILER_TARGET="${ABI}-apple-darwin" \
+            -DCMAKE_CXX_COMPILER_TARGET="${ABI}-apple-darwin" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="13.3" \
+            -DCMAKE_C_COMPILER_LAUNCHER="ccache" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" \
+            -DCMAKE_C_COMPILER="clang" \
+            -DCMAKE_CXX_COMPILER="clang++" \
+            -DCMAKE_C_FLAGS="" \
+            -DCMAKE_CXX_FLAGS="" \
+            -DENABLE_FULL_LTO="ON"
+    fi
+
+    ${MAKE_CMD}
+}
+
+build()
+{
+    local TARGET=$1
+    local ABI=$2
+    local PLATFORM=$3
+
+    rm -rf $OUT > /dev/null 2>&1
+
+    local NINJA=`which ninja`
+    local METHOD=""
+    if [[ -f $NINJA ]]; then
+        METHOD="Ninja"
+    else
+        METHOD="make"
+    fi
+
+    cmake_build "${TARGET}" "${METHOD}" "${ABI}" "${PLATFORM}"
+
+    local BUILD="$OUT/src/erofs-utils"
+    local DUMP_BIN="$BUILD/dump.erofs"
+    local FSCK_BIN="$BUILD/fsck.erofs"
+    local MKFS_BIN="$BUILD/mkfs.erofs"
+    local EXTRACT_BIN="$OUT/src/extract/extract.erofs"
+    local TARGE_DIR_NAME="erofs-tools-${EROFS_VERSION}-$(TZ=UTC-8 date +%y%m%d)-${TARGET}_${ABI}"
+    local TARGET_DIR_PATH="./target/${TARGET}_${ABI}/${TARGE_DIR_NAME}"
+
+    if [ -f "$DUMP_BIN" -a -f "$FSCK_BIN" -a -f "$MKFS_BIN" -a -f "$EXTRACT_BIN" ]; then
+        echo "复制文件中..."
+        [[ ! -d "$TARGET_DIR_PATH" ]] && mkdir -p ${TARGET_DIR_PATH}
+        cp -af $BUILD/*.erofs ${TARGET_DIR_PATH}
+        touch -c -d "2009-01-01 00:00:00" ${TARGET_DIR_PATH}/*
+        echo "编译成功: ${TARGE_DIR_NAME}"
+    else
+        echo "error"
+        exit 1
+    fi
+}
+
+build "Darwin" "x86_64"
+build "Darwin" "aarch64"
+
+exit 0
