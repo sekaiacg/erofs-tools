@@ -11,6 +11,10 @@
 #include <vector>
 #include <sys/stat.h>
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#include <windows.h>
+#endif
+
 template<typename T>
 constexpr T alignUp(T target, uint32_t size) {
 	return target + size - 1 & ~(size - 1);
@@ -75,7 +79,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 			str[i] = '\0';
 			if (access(str, F_OK) != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-				err = mkdir(str);
+				err = CreateDirectory(str, nullptr) == 0 ? -EIO : 0;
 #else
 				err = mkdir(str, mode);
 #endif
@@ -86,7 +90,7 @@ static int mkdirs(const char *dirPath, mode_t mode) {
 	}
 	if (len > 0 && access(str, F_OK) != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-		err = mkdir(str);
+		err = err = CreateDirectory(str, nullptr) == 0 ? -EIO : 0;
 #else
 		err = mkdir(str, mode);
 #endif

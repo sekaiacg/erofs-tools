@@ -15,6 +15,10 @@ set(TARGET_CFLAGS
     "-Wno-unused-parameter"
 )
 
+if (CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
+    list(APPEND TARGET_CFLAGS "-Wno-ignored-attributes")
+endif()
+
 set(cflags_lp64
     "-DDEFLATE_CHUNK_WRITE_64LE"
     "-DINFLATE_CHUNK_READ_64LE"

@@ -13,6 +13,7 @@
 #include <windef.h>
 #include <winbase.h>
 #include <fileapi.h>
+#include <iconv.h>
 #endif
 
 namespace skkk::erofs {
@@ -296,16 +297,29 @@ namespace skkk::erofs {
 
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-	const char CYGLINK_MAGIC[] = "!<symlink>";
+	static bool CharsetConvert(const char *fromcode, const char *tocode,
+	                           const char *in, size_t inlen,
+	                           char *out, size_t *outlen) {
+		iconv_t cd = iconv_open(tocode, fromcode);
+		if (cd == (iconv_t) - 1) return false;
+		size_t inbytesleft = inlen;
+		size_t outbytesleft = *outlen;
+		char *outbuf = out;
+		char *inbuf = const_cast<char *>(in);
+		size_t ret = iconv(cd, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
+		iconv_close(cd);
+		*outlen = outbytesleft;
+		return ret != (size_t) -1;
+	}
+
+	constexpr static char CYGLINK_MAGIC[] = "!<symlink>";
 
 	int symlink_cygwin(const char *from, const char *to) {
 		int fd;
 		size_t utf16Len = PATH_MAX;
 		char utf16LEBuf[PATH_MAX] = {0};
 
-		fd = open(to,
-		          O_WRONLY | O_CREAT | O_NOFOLLOW | O_EXCL,
-		          0700);
+		fd = open(to, O_WRONLY | O_CREAT | O_NOFOLLOW | O_EXCL, 0700);
 		if (fd < 0) {
 			return -1;
 		}

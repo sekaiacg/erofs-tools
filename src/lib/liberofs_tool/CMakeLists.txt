@@ -16,11 +16,14 @@ set(EROFS_TOOL_SRCS
 
 add_library(${TARGET} STATIC ${EROFS_TOOL_SRCS})
 
-target_include_directories(${TARGET} PUBLIC
+target_include_directories(${TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(COMMON_LINK_LIBS erofs_utils_static)
+if (CMAKE_SYSTEM_NAME MATCHES "Windows|CYGWIN")
+    list(APPEND COMMON_LINK_LIBS iconv)
+endif ()
 
-target_link_libraries(${TARGET} PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,erofs_utils_static>")
+target_link_libraries(${TARGET} PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,${COMMON_LINK_LIBS}>")
 
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${TARGET_CFLAGS}>"
