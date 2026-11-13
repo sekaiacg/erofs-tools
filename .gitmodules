@@ -42,3 +42,7 @@
 	path = src/lib/libfuse
 	url = https://github.com/sekaiacg/libfuse
 	branch = main
+[submodule "src/lib/mman-win32"]
+	path = src/lib/mman-win32
+	url = https://github.com/boldowa/mman-win32
+	branch = master
