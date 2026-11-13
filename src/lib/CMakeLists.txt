@@ -1,3 +1,5 @@
+add_subdirectory(winsup)
+
 if (ENABLE_LIBCXX)
     include(libcxx.cmake)
 endif ()
@@ -7,7 +9,10 @@ endif ()
 include(libpcre2.cmake)
 include(libselinux.cmake)
 include(libz.cmake)
-include(libuuid.cmake)
+# libuuid is only linked on Darwin, no need to build it on Windows
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    include(libuuid.cmake)
+endif ()
 add_subdirectory(android)
 include(liberofs_utils.cmake)
 add_subdirectory(liberofs_tool)

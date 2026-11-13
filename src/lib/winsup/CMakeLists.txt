@@ -14,5 +14,4 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
     target_include_directories(${TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-
 endif ()

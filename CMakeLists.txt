@@ -1,7 +1,17 @@
-cmake_minimum_required(VERSION 3.31.6)
+cmake_minimum_required(VERSION 3.28)
 include(cmake/check.cmake)
 include(cmake/patch.cmake)
 project(erofs-tools LANGUAGES C CXX ASM)
+
+# the Windows tools embed a manifest which makes the ANSI APIs accept UTF-8
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    enable_language(RC)
+    set(WINGSUP_MANIFEST_RC "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/winsup/winsup.rc")
+
+    function(erofs_add_manifest target)
+        target_sources(${target} PRIVATE "${WINGSUP_MANIFEST_RC}")
+    endfunction()
+endif ()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 23)
@@ -72,7 +82,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(APPEND GLOBAL_LDFLAGS_RELEASE "-Wl,-dead_strip,-S,-x")
 endif ()
 
-if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|CYGWIN")
+if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|CYGWIN|Windows")
     if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "loongarch64")
         if (USE_LIBCXX)
             list(APPEND GLOBAL_CFLAGS

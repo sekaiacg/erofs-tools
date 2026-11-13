@@ -20,6 +20,18 @@
 #define HAVE_SYS_RANDOM_H 1
 #endif // __CYGWIN__
 
+// Provided by src/lib/winsup, the CMake link checks below cannot see them.
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define HAVE_SYS_IOCTL_H 1
+#define HAVE_SYS_SYSMACROS_H 1
+#define HAVE_SYS_RESOURCE_H 1
+#define HAVE_GETRLIMIT 1
+#define HAVE_SYS_RANDOM_H 1
+#define HAVE_GETRANDOM 1
+#define HAVE_PWRITEV 1
+#define HAVE_SYSCONF 1
+#endif // _WIN32
+
 // Includes
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_ENDIAN_H 1

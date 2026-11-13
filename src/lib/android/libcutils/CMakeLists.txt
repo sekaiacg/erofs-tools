@@ -24,6 +24,10 @@ target_include_directories(${TARGET} PUBLIC "${TARGET_SRC_DIR}/include")
 
 target_link_libraries(${TARGET} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,base_static,log_static>")
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(${TARGET} PRIVATE winsup)
+endif ()
+
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${TARGET_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${TARGET_CFLAGS}>"

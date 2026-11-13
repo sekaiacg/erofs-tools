@@ -348,6 +348,72 @@ char *realpath(const char *path, char *resolved)
 	return buf;
 }
 
+
+/*
+ * Cygwin compatible symlinks: a plain file carrying FILE_ATTRIBUTE_SYSTEM
+ * whose content is the target string prefixed by "!<symlink>" and a
+ * UTF-16LE BOM.  Decoding it lets the tools round-trip on Windows.
+ */
+#define CYGLINK_MAGIC		"!<symlink>"
+#define CYGLINK_MAGIC_LEN	10
+#define CYGLINK_HDR_LEN		(CYGLINK_MAGIC_LEN + 2)
+
+static int read_cygwin_symlink(const char *path, char *out, size_t outsz)
+{
+	unsigned char *buf;
+	wchar_t *w;
+	DWORD got = 0;
+	HANDLE h;
+	size_t max, len;
+	int ret;
+
+	h = CreateFileA(path, GENERIC_READ,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+		return -1;
+
+	buf = malloc(PATH_MAX * 2);
+	if (!buf) {
+		CloseHandle(h);
+		errno = ENOMEM;
+		return -1;
+	}
+	if (!ReadFile(h, buf, PATH_MAX * 2, &got, NULL)) {
+		DWORD err = GetLastError();
+
+		CloseHandle(h);
+		free(buf);
+		set_errno_from_win32(err);
+		return -1;
+	}
+	CloseHandle(h);
+
+	if (got < CYGLINK_HDR_LEN || memcmp(buf, CYGLINK_MAGIC, CYGLINK_MAGIC_LEN) ||
+	    buf[CYGLINK_MAGIC_LEN] != 0xff || buf[CYGLINK_MAGIC_LEN + 1] != 0xfe) {
+		free(buf);
+		return -1;
+	}
+
+	w = (wchar_t *)(buf + CYGLINK_HDR_LEN);
+	max = (got - CYGLINK_HDR_LEN) / sizeof(wchar_t);
+	for (len = 0; len < max && w[len]; ++len)
+		;
+	ret = WideCharToMultiByte(CP_UTF8, 0, w, (int)len, out, (int)outsz,
+				  NULL, NULL);
+	free(buf);
+	return ret > 0 ? ret : -1;
+}
+
+static bool is_cygwin_symlink(const char *path)
+{
+	char target[PATH_MAX];
+
+	if (!(GetFileAttributesA(path) & FILE_ATTRIBUTE_SYSTEM))
+		return false;
+	return read_cygwin_symlink(path, target, sizeof(target)) > 0;
+}
+
 /*
  * Windows resolves every path itself, so lstat() equals stat().  The CRT only
  * knows a read-only attribute, report the usual POSIX permissions instead so
@@ -357,14 +423,29 @@ int lstat(const char *path, struct stat *st)
 {
 	int ret = stat(path, st);
 
-	if (!ret) {
-		if (S_ISDIR(st->st_mode))
-			st->st_mode = S_IFDIR | 0755;
-		else if (S_ISREG(st->st_mode))
-			st->st_mode = S_IFREG |
-				      ((st->st_mode & S_IWRITE) ? 0644 : 0444);
+	if (ret)
+		return ret;
+
+	if (S_ISDIR(st->st_mode)) {
+		st->st_mode = S_IFDIR | 0755;
+		return 0;
 	}
-	return ret;
+	if (!S_ISREG(st->st_mode))
+		return 0;
+
+	st->st_mode = S_IFREG | ((st->st_mode & S_IWRITE) ? 0644 : 0444);
+
+	if (st->st_size > CYGLINK_HDR_LEN && is_cygwin_symlink(path)) {
+		char target[PATH_MAX];
+		int len = read_cygwin_symlink(path, target, sizeof(target));
+
+		if (len > 0) {
+			/* symlink inodes carry the target length as their size */
+			st->st_mode = S_IFLNK | 0777;
+			st->st_size = len;
+		}
+	}
+	return 0;
 }
 
 int symlink(const char *target, const char *linkpath)
@@ -388,11 +469,14 @@ int symlink(const char *target, const char *linkpath)
 
 ssize_t readlink(const char *path, char *buf, size_t bufsiz)
 {
-	(void)path;
-	(void)buf;
-	(void)bufsiz;
-	errno = ENOSYS;
-	return -1;
+	int ret = read_cygwin_symlink(path, buf, bufsiz);
+
+	if (ret < 0) {
+		if (!errno)
+			errno = EINVAL;
+		return -1;
+	}
+	return ret;
 }
 
 int link(const char *oldpath, const char *newpath)
@@ -790,6 +874,8 @@ int fremovexattr(int fd, const char *name)
 
 int winsup_utime(const char *path, const struct utimbuf *times)
 {
+	/* SetFileTime() rewrites the DOS attributes on some implementations */
+	DWORD attrs = GetFileAttributesA(path);
 	HANDLE h;
 	BOOL ok;
 
@@ -822,5 +908,11 @@ int winsup_utime(const char *path, const struct utimbuf *times)
 		return -1;
 	}
 	CloseHandle(h);
+
+	/* keep the Cygwin symlink marker files recognized as symlinks */
+	if (attrs != INVALID_FILE_ATTRIBUTES)
+		SetFileAttributesA(path, attrs &
+			~(FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE |
+			  FILE_ATTRIBUTE_REPARSE_POINT));
 	return 0;
 }

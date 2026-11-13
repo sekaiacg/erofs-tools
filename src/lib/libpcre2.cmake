@@ -40,9 +40,20 @@ set(libpcre2_srcs
     "pcre2_valid_utf.c"
     "pcre2_xclass.c"
 )
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # the Microsoft CRT provides no POSIX regex API, use the bundled wrapper
+    list(APPEND libpcre2_srcs "pcre2posix.c")
+endif ()
+
 list(TRANSFORM libpcre2_srcs PREPEND "${TARGET_SRC_DIR}/")
 
 add_library(${TARGET} STATIC ${libpcre2_srcs})
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # static build, do not mark the exported API as dllimport/dllexport
+    target_compile_definitions(${TARGET} PUBLIC PCRE2_STATIC)
+endif ()
 
 set_target_properties(${TARGET} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${LIBPCRE2_BINARY_DIR})
 

@@ -9,7 +9,9 @@
 #include "Utils.h"
 #include "erofs/ExtractHelper.h"
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#elif defined(__CYGWIN__)
 #include <windef.h>
 #include <winbase.h>
 #include <fileapi.h>
@@ -297,6 +299,7 @@ namespace skkk::erofs {
 
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#if defined(__CYGWIN__)
 	static bool CharsetConvert(const char *fromcode, const char *tocode,
 	                           const char *in, size_t inlen,
 	                           char *out, size_t *outlen) {
@@ -311,6 +314,25 @@ namespace skkk::erofs {
 		*outlen = outbytesleft;
 		return ret != (size_t) -1;
 	}
+#else
+	/*
+	 * The MinGW runtime ships no iconv, and the only conversion needed here
+	 * is UTF-8 to UTF-16LE for the Cygwin style symlink file.
+	 */
+	static bool CharsetConvert(const char *fromcode, const char *tocode,
+	                           const char *in, size_t inlen,
+	                           char *out, size_t *outlen) {
+		if (strcmp(fromcode, "UTF-8") != 0 || strcmp(tocode, "UTF-16LE") != 0)
+			return false;
+		int wlen = MultiByteToWideChar(CP_UTF8, 0, in, static_cast<int>(inlen), nullptr, 0);
+		if (wlen <= 0 || static_cast<size_t>(wlen) * sizeof(wchar_t) > *outlen)
+			return false;
+		MultiByteToWideChar(CP_UTF8, 0, in, static_cast<int>(inlen),
+		                    reinterpret_cast<wchar_t *>(out), wlen);
+		*outlen -= static_cast<size_t>(wlen) * sizeof(wchar_t);
+		return true;
+	}
+#endif
 
 	constexpr static char CYGLINK_MAGIC[] = "!<symlink>";
 
