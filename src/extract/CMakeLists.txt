@@ -9,6 +9,11 @@ add_executable(${TARGET} ${EXTRACT_SRCS})
 target_include_directories(${TARGET} PRIVATE "include")
 
 target_link_libraries(${TARGET} PUBLIC erofs_tool_static)
+
+if (COMMAND erofs_add_manifest)
+    erofs_add_manifest(${TARGET})
+endif ()
+
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${TARGET_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${TARGET_CFLAGS}>"
