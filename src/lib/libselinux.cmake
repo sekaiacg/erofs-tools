@@ -77,7 +77,7 @@ list(TRANSFORM libselinux_srcs PREPEND "${TARGET_SRC_DIR}/")
 
 if (CMAKE_SYSTEM_NAME MATCHES "CYGWIN")
     list(APPEND TARGET_CFLAGS "-Wno-char-subscripts")
-elseif (CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+elseif (CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin|Windows")
     list(APPEND TARGET_CFLAGS "-DBUILD_HOST")
     if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
         list(APPEND TARGET_CFLAGS "-DHAVE_STRLCPY")
@@ -101,6 +101,10 @@ target_include_directories(${TARGET}
 )
 
 target_link_libraries(${TARGET} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,pcre2_static>")
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(${TARGET} PRIVATE winsup)
+endif ()
 
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${TARGET_CFLAGS}>"
