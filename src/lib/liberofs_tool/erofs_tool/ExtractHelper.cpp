@@ -9,7 +9,9 @@
 #include "Utils.h"
 #include "erofs/ExtractHelper.h"
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#elif defined(__CYGWIN__)
 #include <windef.h>
 #include <winbase.h>
 #include <fileapi.h>
@@ -296,7 +298,7 @@ namespace skkk::erofs {
 	}
 
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#if defined(__CYGWIN__)
 	static bool CharsetConvert(const char *fromcode, const char *tocode,
 	                           const char *in, size_t inlen,
 	                           char *out, size_t *outlen) {
@@ -371,11 +373,11 @@ namespace skkk::erofs {
 
 		buf[inode->i_size] = '\0';
 	again:
-#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
-		if (symlink(buf, filePath) < 0) {
-#else
+#if defined(__CYGWIN__)
 		// @formatter:off
 		if (symlink_cygwin(buf, filePath) < 0) { // @formatter:on
+#else
+		if (symlink(buf, filePath) < 0) {
 #endif
 			if (errno == EEXIST && config.overwrite && tryagain) {
 				if (unlink(filePath) < 0) {

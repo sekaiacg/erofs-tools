@@ -19,7 +19,7 @@ add_library(${TARGET} STATIC ${EROFS_TOOL_SRCS})
 target_include_directories(${TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 set(COMMON_LINK_LIBS erofs_utils_static)
-if (CMAKE_SYSTEM_NAME MATCHES "Windows|CYGWIN")
+if (CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
     list(APPEND COMMON_LINK_LIBS iconv)
 endif ()
 
