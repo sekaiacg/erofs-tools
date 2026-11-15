@@ -189,6 +189,10 @@ list(APPEND common_link_libs
 
 target_link_libraries(${TARGET} PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,${common_link_libs}>")
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(${TARGET} PUBLIC winsup)
+endif ()
+
 target_compile_options(${TARGET} PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${LIBEROFS_STATIC_DEFAULTS_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${LIBEROFS_STATIC_DEFAULTS_CFLAGS}>"
