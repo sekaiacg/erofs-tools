@@ -72,7 +72,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(APPEND GLOBAL_LDFLAGS_RELEASE "-Wl,-dead_strip,-S,-x")
 endif ()
 
-if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|CYGWIN")
+if (NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|CYGWIN|Windows")
     if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "loongarch64")
         if (USE_LIBCXX)
             list(APPEND GLOBAL_CFLAGS
