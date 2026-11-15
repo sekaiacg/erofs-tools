@@ -72,6 +72,12 @@ patch_file(
     "${TARGET_SRC_DIR}/lib/liberofs_sha256.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/patch/erofs-utils/liberofs_sha256.h.patch"
 )
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    patch_files(
+        "${TARGET_SRC_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/patch/erofs-utils/0002-win32.patch"
+    )
+endif ()
 
 execute_process(
     COMMAND sh -c
