@@ -1,3 +1,5 @@
+add_subdirectory(winsup)
+
 if (ENABLE_LIBCXX)
     include(libcxx.cmake)
 endif ()
