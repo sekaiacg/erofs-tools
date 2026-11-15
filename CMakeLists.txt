@@ -3,6 +3,15 @@ include(cmake/check.cmake)
 include(cmake/patch.cmake)
 project(erofs-tools LANGUAGES C CXX ASM)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    enable_language(RC)
+    set(WINGSUP_MANIFEST_RC "${CMAKE_CURRENT_SOURCE_DIR}/src/lib/winsup/winsup.rc")
+
+    function(erofs_add_manifest target)
+        target_sources(${target} PRIVATE "${WINGSUP_MANIFEST_RC}")
+    endfunction()
+endif ()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)

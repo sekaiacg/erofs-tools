@@ -7,6 +7,9 @@ set(TARGET_mkfs mkfs.erofs)
 file(GLOB mkfs_srcs "${EROFS_UTILS_DIR}/mkfs/*.c")
 add_executable(${TARGET_mkfs} ${mkfs_srcs})
 target_link_libraries(${TARGET_mkfs} ${COMMON_LINK_LIBS})
+if (COMMAND erofs_add_manifest)
+    erofs_add_manifest(${TARGET_mkfs})
+endif ()
 ####################################################################################
 
 ###############################------dump.erofs------###############################
@@ -14,6 +17,9 @@ set(TARGET_dump dump.erofs)
 file(GLOB dump_srcs "${EROFS_UTILS_DIR}/dump/*.c")
 add_executable(${TARGET_dump} ${dump_srcs})
 target_link_libraries(${TARGET_dump} ${COMMON_LINK_LIBS})
+if (COMMAND erofs_add_manifest)
+    erofs_add_manifest(${TARGET_dump})
+endif ()
 ####################################################################################
 
 ###############################------fsck.erofs------###############################
@@ -21,4 +27,7 @@ set(TARGET_fsck fsck.erofs)
 file(GLOB fsck_srcs "${EROFS_UTILS_DIR}/fsck/*.c")
 add_executable(${TARGET_fsck} ${fsck_srcs})
 target_link_libraries(${TARGET_fsck} ${COMMON_LINK_LIBS})
+if (COMMAND erofs_add_manifest)
+    erofs_add_manifest(${TARGET_fsck})
+endif ()
 ####################################################################################
