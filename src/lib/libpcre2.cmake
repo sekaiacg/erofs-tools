@@ -40,9 +40,18 @@ set(libpcre2_srcs
     "pcre2_valid_utf.c"
     "pcre2_xclass.c"
 )
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(APPEND libpcre2_srcs "pcre2posix.c")
+endif ()
+
 list(TRANSFORM libpcre2_srcs PREPEND "${TARGET_SRC_DIR}/")
 
 add_library(${TARGET} STATIC ${libpcre2_srcs})
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_compile_definitions(${TARGET} PUBLIC PCRE2_STATIC)
+endif ()
 
 set_target_properties(${TARGET} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${LIBPCRE2_BINARY_DIR})
 
