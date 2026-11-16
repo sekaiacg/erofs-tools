@@ -9,11 +9,11 @@
 #include "Utils.h"
 #include "erofs/ExtractHelper.h"
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-#include <windef.h>
-#include <winbase.h>
-#include <fileapi.h>
-#include <iconv.h>
+#ifdef __CYGWIN__
+static inline int lchown_stub(const char *, uid_t, gid_t) { return 0; }
+static inline int chmod_stub(const char*, mode_t) { return 0; }
+#define lchown lchown_stub
+#define chmod chmod_stub
 #endif
 
 namespace skkk::erofs {
@@ -295,50 +295,6 @@ namespace skkk::erofs {
 		return ret;
 	}
 
-
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-	static bool CharsetConvert(const char *fromcode, const char *tocode,
-	                           const char *in, size_t inlen,
-	                           char *out, size_t *outlen) {
-		iconv_t cd = iconv_open(tocode, fromcode);
-		if (cd == (iconv_t) - 1) return false;
-		size_t inbytesleft = inlen;
-		size_t outbytesleft = *outlen;
-		char *outbuf = out;
-		char *inbuf = const_cast<char *>(in);
-		size_t ret = iconv(cd, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
-		iconv_close(cd);
-		*outlen = outbytesleft;
-		return ret != (size_t) -1;
-	}
-
-	constexpr static char CYGLINK_MAGIC[] = "!<symlink>";
-
-	int symlink_cygwin(const char *from, const char *to) {
-		int fd;
-		size_t utf16Len = PATH_MAX;
-		char utf16LEBuf[PATH_MAX] = {0};
-
-		fd = open(to, O_WRONLY | O_CREAT | O_NOFOLLOW | O_EXCL, 0700);
-		if (fd < 0) {
-			return -1;
-		}
-
-		if (!CharsetConvert("UTF-8", "UTF-16LE", from, strlen(from), utf16LEBuf, &utf16Len)) {
-			return -1;
-		}
-
-		write(fd, CYGLINK_MAGIC, strlen(CYGLINK_MAGIC));
-		write(fd, "\xFF\xFE", 2); //UTF16 BOM (little endian)
-		write(fd, utf16LEBuf, PATH_MAX - utf16Len);
-		write(fd, "\x0\x0", 2);
-		close(fd);
-		SetFileAttributesA(to, FILE_ATTRIBUTE_SYSTEM);
-		return 0;
-	}
-
-#endif
-
 	/**
 	 * Copy from fsck.erofs
 	 * Modified
@@ -371,12 +327,7 @@ namespace skkk::erofs {
 
 		buf[inode->i_size] = '\0';
 	again:
-#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 		if (symlink(buf, filePath) < 0) {
-#else
-		// @formatter:off
-		if (symlink_cygwin(buf, filePath) < 0) { // @formatter:on
-#endif
 			if (errno == EEXIST && config.overwrite && tryagain) {
 				if (unlink(filePath) < 0) {
 					ret = -errno;
@@ -412,11 +363,7 @@ namespace skkk::erofs {
 			ret = erofs_extract_file(config, inode, srcPath);
 	again:
 		if (strncmp(srcPath, targetPath, strlen(targetPath)) != 0 &&
-#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
 		    link(srcPath, targetPath) < 0) {
-#else
-			CreateHardLinkA(targetPath, srcPath, nullptr) != true) {
-#endif
 			if (errno == EEXIST && config.overwrite && tryagain) {
 				if (unlink(targetPath) < 0) {
 					ret = -errno;
@@ -472,9 +419,7 @@ namespace skkk::erofs {
 	 * @param path
 	 */
 	void ExtractHelper::set_attributes(const ExtractConfig &config, erofs_inode *inode, const char *path) {
-#ifndef __CYGWIN__
 		int ret;
-#endif
 #ifdef HAVE_UTIMENSAT
 		// @formatter:off
 		if (utimensat(AT_FDCWD, path, (timespec[]) {
@@ -495,7 +440,6 @@ namespace skkk::erofs {
 		if (utime(path, &ub) < 0)
 #endif
 			LOGCW("failed to set times: {}", path);
-#ifndef __CYGWIN__
 		if (config.preserve_owner) {
 			ret = lchown(path, inode->i_uid, inode->i_gid);
 			if (ret < 0)
@@ -510,6 +454,5 @@ namespace skkk::erofs {
 			if (ret < 0)
 				LOGCW("failed to set permissions: {}", path);
 		}
-#endif
 	}
 }

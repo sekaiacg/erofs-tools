@@ -246,7 +246,7 @@ jobs:
       CCACHE_HARDLINK: "true"
       CCACHE_BASEDIR: "${{ github.workspace }}"
       LLVM_CYGWIN_PATH: "/opt/cygwin"
-      LLVM_CYGWIN_VERSION: "20.1.8"
+      LLVM_CYGWIN_VERSION: "23.1.1"
 
     steps:
       - name: Setup llvm-cygwin tools
@@ -272,7 +272,7 @@ jobs:
       - name: Build erofs-tools
         run: |
           chmod a+x build_cygwin.sh
-          ./build_cygwin.sh
+          PATH="${LLVM_CYGWIN_PATH}/bin:$PATH" ./build_cygwin.sh
 
       - name: Prepare artifact
         if: success()
