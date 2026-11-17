@@ -110,7 +110,8 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
         set(MAX_BLOCK_SIZE 16384)
     endif ()
 endif ()
-list(APPEND LIBEROFS_STATIC_DEFAULTS_CFLAGS "-DEROFS_MAX_BLOCK_SIZE=${MAX_BLOCK_SIZE}")
+set(EROFS_UTILS_MAX_BLOCK_SIZE_FLAG "-DEROFS_MAX_BLOCK_SIZE=${MAX_BLOCK_SIZE}")
+message(STATUS "[erofs-utils] MAX_BLOCK_SIZE: ${MAX_BLOCK_SIZE}")
 
 set(liberofs_utils_srcs
     "config.c"
@@ -189,7 +190,11 @@ list(APPEND common_link_libs
 
 target_link_libraries(${TARGET} PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,${common_link_libs}>")
 
-target_compile_options(${TARGET} PRIVATE
+target_compile_options(${TARGET}
+    PRIVATE
     "$<$<COMPILE_LANGUAGE:C>:${LIBEROFS_STATIC_DEFAULTS_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${LIBEROFS_STATIC_DEFAULTS_CFLAGS}>"
+    PUBLIC
+    "$<$<COMPILE_LANGUAGE:C>:${EROFS_UTILS_MAX_BLOCK_SIZE_FLAG}>"
+    "$<$<COMPILE_LANGUAGE:CXX>:${EROFS_UTILS_MAX_BLOCK_SIZE_FLAG}>"
 )
